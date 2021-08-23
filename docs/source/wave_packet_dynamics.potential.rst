@@ -1,4 +1,4 @@
-wave\_packet\_dynamics.potential module
+potential submodule
 =======================================
 
 .. automodule:: wave_packet_dynamics.potential

@@ -8,7 +8,7 @@ The package has been published on PyPI and can be installed with pip.
 
 .. code-block:: bash
 
-    pip install wave_packet_dynamics
+    pip install wave-packet-dynamics
 
 Usage
 *****

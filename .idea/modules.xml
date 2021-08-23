@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/wave_packet_dynamics.iml" filepath="$PROJECT_DIR$/.idea/wave_packet_dynamics.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/wave-packet-dynamics.iml" filepath="$PROJECT_DIR$/.idea/wave-packet-dynamics.iml" />
     </modules>
   </component>
 </project>
