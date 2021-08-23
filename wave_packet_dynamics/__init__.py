@@ -2,7 +2,7 @@
 
 __author__ = """Robert Grzonka"""
 __email__ = 'robert.grzonka@fau.de'
-__version__ = '0.0.0'
+__version__ = '0.0.1'
 
 
 def hello(name: str = None) -> None:
