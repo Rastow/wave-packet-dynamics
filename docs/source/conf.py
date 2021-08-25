@@ -22,7 +22,7 @@ copyright = '2021, Robert Grzonka'
 author = 'Robert Grzonka'
 
 # The full version, including alpha/beta/rc tags
-release = '0.0.0'
+release = '0.0.3'
 
 
 # -- General configuration ---------------------------------------------------
@@ -32,6 +32,7 @@ release = '0.0.0'
 # ones.
 extensions = [
     "sphinx.ext.autodoc",
+    "numpydoc",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
