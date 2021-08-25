@@ -6,6 +6,11 @@ wave\_packet\_dynamics package
    :undoc-members:
    :show-inheritance:
 
+.. automodule:: wave_packet_dynamics.__main__
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Submodules
 ----------
 
