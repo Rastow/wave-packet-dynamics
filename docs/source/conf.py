@@ -32,7 +32,7 @@ release = '0.0.3'
 # ones.
 extensions = [
     "sphinx.ext.autodoc",
-    "numpydoc",
+    "numpy.numpydoc",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
