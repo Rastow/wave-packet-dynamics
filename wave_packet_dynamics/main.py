@@ -552,7 +552,7 @@ class Simulation:
             return lines
 
         # function to update the line objects
-        def update():
+        def update(time_step):
 
             x = self.grid.coordinates
             y = []
