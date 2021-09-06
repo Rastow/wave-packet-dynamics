@@ -1,7 +1,7 @@
 import os
 import setuptools
 
-description = 'Simulates the time evolution of a 1-dimensional wave packet in an arbitrary time independent potential'
+description = 'Simulates the time evolution of a 1-dimensional wave packet in an arbitrary time-independent potential'
 
 here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:

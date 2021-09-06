@@ -13,8 +13,7 @@ The package has been published on PyPI and can be installed with pip.
 Examples
 ********
 
-Tutorials are provided in form of a JupyterNotebooks.
-The notebooks can be downloaded from GitHub or by viewing the page source of the pages containing the executed notebooks.
+Tutorials are provided in form of a executed JupyterNotebooks.
 
 .. toctree::
    :maxdepth: 2
