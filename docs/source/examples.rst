@@ -20,3 +20,11 @@ Tutorials are provided in form of a executed JupyterNotebooks.
    :caption: Notebooks:
 
    notebooks/example
+
+Additional Tips
+***************
+
+The criteria for choice of initial conditions were determined with
+help of formulas described in a paper from Goldberg *et al.*,
+American Journal of Physics **35**, 177 (1967);
+DOI: 10.1119/1.1973991.
