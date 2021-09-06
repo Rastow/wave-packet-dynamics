@@ -6,6 +6,6 @@
 
 __author__ = """Robert Grzonka"""
 __email__ = 'robert.grzonka@fau.de'
-__version__ = '1.0.0'
+__version__ = '0.0.4'
 
 from wave_packet_dynamics.main import *
