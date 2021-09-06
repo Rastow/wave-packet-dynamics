@@ -12,7 +12,7 @@ with open('requirements.txt') as f:
 
 setuptools.setup(
     name='wave_packet_dynamics',
-    version='0.0.3',
+    version='1.0.0',
     url='https://github.com/Rastow/wave-packet-dynamics',
     author='Robert Grzonka',
     author_email='robert.grzonka@fau.de',

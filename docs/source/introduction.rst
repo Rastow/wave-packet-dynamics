@@ -1,8 +1,7 @@
 Introduction
 ============
 
-Simulates the time evolution of a 1-dimensional wave packet in an
-arbitrary time independent potential.
+Simulates the time evolution of a 1-dimensional wave packet in an arbitrary time independent potential.
 
 Motivation
 **********

@@ -5,11 +5,7 @@ wave\_packet\_dynamics package
    :members:
    :undoc-members:
    :show-inheritance:
-
-.. automodule:: wave_packet_dynamics.__main__
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   :private-members:
 
 Submodules
 ----------
@@ -17,5 +13,6 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
+   wave_packet_dynamics.main
    wave_packet_dynamics.potential
    wave_packet_dynamics.wave_function

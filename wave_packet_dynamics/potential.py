@@ -6,27 +6,38 @@ def harmonic(x: np.ndarray, k: float, x0: float) -> np.ndarray:
     """
     Represents a harmonic (parabola) potential.
 
-    :param numpy.ndarray x: coordinate array for computation of function values
-    :param float k: force constant
-    :param float x0: coordinate of the potential valley (zero point)
+    .. math::
 
-    :return: array with function values of the harmonic potential
-    :rtype: numpy.ndarray
+        V\\left( x \\right) = 0.5k \\, \\left( x-x_0 \\right) ^2
+
+    :param x: Coordinate array for computation of function values.
+    :param k: Force constant of the harmonic potential.
+    :param x0: Coordinate of the potential valley (zero point).
+
+    :return: Array with function values of the harmonic potential.
     """
     return 0.5 * k * (x - x0) ** 2
 
 
 def wall(x: np.ndarray, height: float, width: float, x0: float) -> np.ndarray:
-    """
+    r"""
     Represents a (rectangular) hard wall potential step.
 
-    :param numpy.ndarray x: coordinate array for computation of function values
-    :param float height: height of the potential step
-    :param float width: width of the potential step
-    :param float x0: coordinate of the potential center
+    .. math::
 
-    :return: array with function values of the wall potential
-    :rtype: numpy.ndarray
+        V \left( x \right) =
+        \begin{cases}
+        0 & \text{for} & x_0 - w/2 > & x & \\
+        h & \text{for} & x_0 - w/2 < & x & < x_0 + w/2 \\
+        0 & \text{for} &             & x & > x_0 + w/2 \\
+        \end{cases}
+
+    :param x: Coordinate array for computation of function values.
+    :param height: Height :math:`h` of the potential step.
+    :param width: Width :math:`w` of the potential step.
+    :param x0: Coordinate of the potential center.
+
+    :return: Array with function values of the wall potential.
     """
     y = np.empty_like(x)
     for index, coord in enumerate(x):

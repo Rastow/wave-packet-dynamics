@@ -5,3 +5,4 @@ wave\_function submodule
    :members:
    :undoc-members:
    :show-inheritance:
+   :private-members:

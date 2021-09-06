@@ -22,7 +22,7 @@ copyright = '2021, Robert Grzonka'
 author = 'Robert Grzonka'
 
 # The full version, including alpha/beta/rc tags
-release = '0.0.3'
+release = '1.0.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -32,7 +32,9 @@ release = '0.0.3'
 # ones.
 extensions = [
     "sphinx.ext.autodoc",
-    'sphinx.ext.napoleon',
+    "sphinx_autodoc_typehints",
+    "sphinx.ext.viewcode",
+    "myst_nb",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -55,3 +57,22 @@ html_theme = 'sphinx_rtd_theme'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+# If true, the current module name will be prepended to all description
+# unit titles (such as .. function::).
+add_module_names = False
+
+
+# -- sphinx-autodoc-typehints extension --------------------------------------
+
+# If False, do not add type info for undocumented parameters.
+# If True, add stub documentation for undocumented parameters to be able to add type info.
+always_document_param_types = True
+
+# If True, set typing.TYPE_CHECKING to True to enable "expensive" typing imports
+set_type_checking_flag = True
+
+# -- myst_nb extension --------------------------------------------------------
+
+jupyter_execute_notebooks = "off"
+execution_allow_errors = True

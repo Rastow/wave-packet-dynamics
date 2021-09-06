@@ -1,4 +1,4 @@
-Examples
+Usage
 ========
 
 Installation
@@ -10,7 +10,14 @@ The package has been published on PyPI and can be installed with pip.
 
     pip install wave-packet-dynamics
 
-Usage
-*****
+Examples
+********
 
-Example usage will be provided in form of JupyterNotebooks.
+Tutorials are provided in form of a JupyterNotebooks.
+The notebooks can be downloaded from GitHub or by viewing the page source of the pages containing the executed notebooks.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Notebooks:
+
+   notebooks/example
