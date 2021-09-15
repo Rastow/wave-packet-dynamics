@@ -32,8 +32,8 @@ release = '0.1.0'
 # ones.
 extensions = [
     "sphinx.ext.autodoc",
-    "sphinx_autodoc_typehints",
     "sphinx.ext.viewcode",
+    "numpydoc",
     "myst_nb",
 ]
 
@@ -68,16 +68,24 @@ html_static_path = ['_static']
 add_module_names = False
 
 
-# -- sphinx-autodoc-typehints extension --------------------------------------
-
-# If False, do not add type info for undocumented parameters.
-# If True, add stub documentation for undocumented parameters to be able to add type info.
-always_document_param_types = True
-
-# If True, set typing.TYPE_CHECKING to True to enable "expensive" typing imports
-set_type_checking_flag = True
-
-# -- myst_nb extension --------------------------------------------------------
+# -- myst_nb extension -------------------------------------------------------
 
 jupyter_execute_notebooks = "off"
 execution_allow_errors = True
+
+
+# -- autodoc extension -------------------------------------------------------
+
+autodoc_default_options = {
+    'members': True,
+    'special-members': '__call__',
+    'undoc-members': True,
+    'show-inheritance': True,
+}
+
+autodoc_member_order = 'bysource'
+autodoc_typehints = 'none'
+
+# -- numpydoc extension ------------------------------------------------------
+
+numpydoc_class_members_toctree = False

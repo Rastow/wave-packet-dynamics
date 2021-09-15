@@ -1,7 +1,6 @@
 """Top-level package for wave_packet_dynamics.
 
-..
-
+Imports contents of the main submodule.
 """
 
 __author__ = """Robert Grzonka"""

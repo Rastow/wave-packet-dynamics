@@ -1,82 +1,88 @@
-"""Main module with most functionality. The contents of this submodule are loaded when importing the package."""
+"""Main module with most functionality.
+
+The contents of this submodule are loaded when importing the package.
+"""
 import os
-from typing import Callable, Iterator, List, Tuple, Union
+from typing import Callable, List, Tuple, Union
 from datetime import datetime
+from abc import abstractmethod
+from scipy.sparse import csr_matrix, dia_matrix, diags, identity
+from scipy.sparse.linalg import spsolve
 import numpy as np
-from scipy.sparse import dia_matrix, identity, diags
-from scipy.linalg import lapack
-from matplotlib import pyplot as plt
-from matplotlib import animation
+from findiff import FinDiff
+from timeit import default_timer
+from functools import cached_property
 
 
 class Grid:
+    """Class representation of a 1-dimensional grid.
+
+    Parameters
+    ----------
+    bounds : :class:`Tuple` of :class:`float`
+        Tuple containing the upper and lower bounds of the grid.
+    points : :class:`int`
+        Number of grid points used for discretization.
     """
-    Representation of a 1-dimensional grid.
-
-    :var dimension: The dimension is set to 1 because higher dimensions are not yet supported.
-    :vartype dimension: :class:`int`
-
-    :param bounds: Tuple containing the upper and lower bounds of the grid.
-    :param points: Number of grid points used for discretization.
-    """
-
-    dimension = 1
 
     def __init__(self, bounds: Tuple[float, float], points: int):
-        """
-        Constructor of the :class:`Grid` object.
-
-        :param bounds: Tuple containing the upper and lower bounds of the grid.
-        :param points: Number of grid points used for discretization.
-        """
         self.bounds = bounds
         self.points = points
 
     @property
     def coordinates(self) -> np.ndarray:
-        """
-        Coordinates of the grid points.
+        """Coordinates of the grid points.
 
-        The coordinates are provided as an array which is computed with :func:`numpy.linspace`, resulting in linear \
+        The coordinates are provided as an array computed with :func:`numpy.linspace`, resulting in linear \
         spacing between the grid points. The endpoint is included.
 
-        :return: Coordinates of the grid points.
+        Returns
+        -------
+        coordinates : :class:`numpy.ndarray`
+            Coordinates of the grid points.
         """
         return np.linspace(*self.bounds, num=self.points)
 
     @property
     def spacing(self) -> float:
-        """
-        Spacing between the grid points.
+        """Spacing between the grid points.
 
         The spacing between the grid points is linear and the endpoint is included.
 
-        :return: Spacing between the grid points.
+        Returns
+        -------
+        spacing : :class:`float`
+            Spacing between the grid points.
+
+        Notes
+        -----
+        If :math:`x_{ \\text{min} }` is the lower bound, :math:`x_{ \\text{max} }` is the upper bound and :math:`N` \
+        is the total number of grid points, the grid spacing :math:`\\Delta x` is calculated with following equation:
+
+        .. math:: \\Delta x = \\frac{ x_{ \\text{max} } - x_{ \\text{min} } }{ N - 1 }
         """
         return (self.bounds[1] - self.bounds[0]) / (self.points - 1)
 
 
 class WaveFunction:
-    """
-    Representation of a particle wave function.
+    """Class representation of a particle wave function.
 
-    :param grid: :class:`Grid` instance required for discretization of the function values.
-    :param function: Function that acts on the :class:`Grid` coordinates to produce function values.
-    :param mass: Mass of the particle in atomic units, default is 1 which is the mass of an electron.
+    Parameters
+    ----------
+    grid : :class:`Grid`
+        :class:`Grid` instance required for discretization of the function values.
+    function : :class:`Callable`
+        Function that acts on the :attr:`Grid.coordinates` to produce function values.
+    mass : :class:`float`, default=1
+        Mass of the particle in atomic units, default being 1 which is the mass of an electron.
 
-    :var values: Array with discretized function values.
-    :vartype values: :class:`numpy.ndarray`
+    Attributes
+    ----------
+    values : :class:`numpy.ndarray`
+        Array with discretized function values.
     """
 
     def __init__(self, grid: Grid, function: Callable, mass: float = 1):
-        """
-        Constructor of the :class:`WaveFunction` object. Function values are calculated.
-
-        :param grid: :class:`Grid` instance required for discretization of the function values.
-        :param function: Function that acts on the :class:`Grid` instance's coordinate array to produce function \
-            values.
-        :param mass: Mass of the particle in atomic units, default is 1 which is the mass of an electron.
-        """
         self.grid = grid
         self.function = function
         self.mass = mass
@@ -84,535 +90,596 @@ class WaveFunction:
 
     @property
     def probability_density(self) -> np.ndarray:
-        """
-        Probability density of the particle.
+        """Probability density :math:`\\rho \\left( x \\right)` of the particle.
 
-        The probability density is computed by multiplying the conjugate wave function values with the ordinary wave \
-        function values. Additionally, the imaginary part of the result is discarded, because in theory it should be \
-        zero.
+        Returns
+        -------
+        probability_density : :class:`numpy.ndarray`
+            Spatial probability distribution of the particle.
 
-        :return: Spatial probability distribution of the particle.
+        Notes
+        -----
+        The probability density is computed analogous to the following equation:
+
+        .. math:: \\rho \\left( x \\right) = \\left| \\Psi \\left( x \\right) \\right| ^2 = \\Psi ^{ \\ast } \\Psi
+
+        The imaginary part of the result is discarded, because in theory it should be zero.
         """
         return np.real(self.values.conjugate() * self.values)
 
     def normalize(self):
-        """
-        Normalizes the wave function.
+        """Normalizes the wave function.
 
-        First, the integral over all space is computed and then the wave function values are divided by the integral \
-        value. Uses the function :func:`integrate` to compute the integral.
+        First, the integral over all space is computed with :func:`integrate`. \
+        Then the wave function values are divided by the integral value.
         """
         integral = integrate(self.probability_density, self.grid.spacing)
         self.values /= integral
 
-    def expectation_value(self, operator) -> float:
+    def expectation_value(self, operator: 'LinearOperator') -> float:
+        """Calculates the expectation value :math:`\\langle A \\rangle` of an observable :math:`A`.
+
+        Precisely, the matrix vector product of the linear operator's matrix representation and the state vector \
+        (discretized wave function values) is computed. Then, the product is multiplied with the conjugate wave \
+        function values from the left. The expectation value is obtained by integrating over all space.
+
+        Parameters
+        ----------
+        operator : :class:`LinearOperator`
+            Quantum operator associated to the observable which should be determined. The operator's matrix \
+            representation must match the state vector (wave function).
+
+        Returns
+        -------
+        expectation_value : :class:`float`
+            Expectation value of the specified observable.
+
+        Notes
+        -----
+        The expectation value :math:`\\langle A \\rangle` of an observable :math:`A` is obtained by evaluating \
+        following matrix element:
+
+        .. math::
+
+            \\langle A \\rangle = \\langle \\Psi | \\hat{A} | \\Psi \\rangle =
+            \\int _{ - \\infty } ^{ + \\infty } \\Psi ^{ \\ast } \\hat{A} \\Psi \\, d \\tau
+
+        :math:`\\hat{A}` is the quantum operator associated to the observable :math:`A`. It must be a \
+        :class:`LinearOperator`. In order to obtain real eigenvalues, the operator must also be hermitian.
         """
-        Calculates the expectation value of an observable.
-
-        The observable :math:`A` is obtained by evaluating the matrix element :math:`\\langle \\Psi | \\hat{A} | \\Psi \
-        \\rangle`. :math:`\\hat{A}` is the :class:`LinearOperator` associated to the observable, it is provided as a \
-        parameter. Precisely, the dot product of the linear operator matrix with the wave function values are \
-        computed, then they are multiplied with the conjugate wave function values from the left and lastly \
-        integrated over all space.
-
-        :param operator: :class:`LinearOperator` instance associated to the observable which should be determined. The \
-            operator matrix must match the array with the wave function values.
-        :type operator: :class:`LinearOperator`
-
-        :return: Expectation value of the specified quantum operator.
-        """
-        expectation_value = integrate(self.values.conjugate() * operator.dot(self.values), self.grid.spacing).real
+        expectation_value = integrate(self.values.conjugate() * operator.map(self).values, self.grid.spacing).real
         return expectation_value
 
 
 class Potential:
-    """
-    Representation of a time-independent potential function.
+    """Class representation of a time-independent potential function.
 
-    :param grid: :class:`Grid` instance required for discretization of the function values.
-    :param function: Function that acts on the :class:`Grid` coordinates to produce function values.
+    Parameters
+    ----------
+    grid : :class:`Grid`
+        :class:`Grid` instance required for discretization of the function values.
+    function : :class:`Callable`
+        Function that acts on the :attr:`Grid.coordinates` to produce function values.
 
-    :var values: Array with discretized function values.
-    :vartype values: :class:`numpy.ndarray`
+    Attributes
+    ----------
+    values : :class:`numpy.ndarray`
+        Array with discretized function values.
     """
 
     def __init__(self, grid: Grid, function: Callable):
-        """
-        Constructor of the :class:`Potential` object. Function values are calculated.
-
-        :param grid: :class:`Grid` instance required for discretization of the function values.
-        :param function: Function that acts on the :class:`Grid` instance's coordinate array to produce function \
-            values.
-        """
         self.grid = grid
         self.function = function
         self.values = function(grid.coordinates)
 
 
 class LinearOperator:
+    """Class representation of a linear operator.
+
+    Quantum operators inherit most methods from this class.
+
+    Parameters
+    ----------
+    grid : :class:`Grid`
+        The grid defines the basis of the linear operator. It determines the physical states (wave functions) the \
+        operator may act on.
     """
-    Representation of a linear operator which should act on discretized :class:`WaveFunction` values.
 
-    :param grid: :class:`Grid` instance required for construction of the matrix representation.
-    :param matrix: Sparse diagonal matrix which represents the linear operator.
-    :type matrix: :class:`scipy.sparse.dia_matrix`
-    """
-
-    def __init__(self, grid: Grid, matrix: dia_matrix):
-        """
-        Constructor of the :class:`Potential` object. Function values are calculated.
-
-        :param grid: :class:`Grid` instance required for construction of the matrix representation.
-        :param matrix: Sparse diagonal matrix which represents the linear operator.
-        :type matrix: :class:`scipy.sparse.dia_matrix`
-        """
+    def __init__(self, grid: Grid):
         self.grid = grid
-        self.matrix = matrix
 
-    def dot(self, vector: np.ndarray) -> np.ndarray:
+    def map(self, vector: WaveFunction) -> WaveFunction:
+        """Applies the linear operator to a state vector (wave function).
+
+        First, compatability is asserted. Then, the matrix vector product is calculated.
+
+        Parameters
+        ----------
+        vector : :class:`WaveFunction`
+            Physical state to be mapped.
+
+        Returns
+        -------
+        vector : :class:`WaveFunction`
+            Linear transformation of the state vector.
+
+        Raises
+        ------
+        ValueError
+            If the wave function is not compatible with the :class:`LinearOperator` instance.
         """
-        Computes the action of the :class:`LinearOperator` on discretized :class:`WaveFunction` values.
+        if self.assert_compatibility(vector) is False:
+            raise ValueError("Grid of vector and linear operator do not match!")
+        vector.values = self.matrix.dot(vector.values)
+        return vector
 
-        Uses :func:`scipy.sparse.dia_matrix.dot` to calculate this matrix vector dot product.
-
-        :param vector: Coordinate array with function values, the vector.
-        :return: Matrix vector product.
+    def assert_compatibility(self, vector: Union[WaveFunction, Potential]) -> bool:
         """
-        return self.matrix.dot(vector)
+        Checks if a vector is compatible with the linear operator.
+
+        Uses :func:`numpy.array_equal` to verify that the grid coordinate arrays are equal.
+
+        Parameters
+        ----------
+        vector : :class:`WaveFunction` or :class:`Potential`
+            Class with discretized function values, must also contain the underlying :class:`Grid` instance as an \
+            attribute.
+
+        Returns
+        -------
+        compatibility : :class:`bool`
+            Returned value is ``True`` if the grid coordinates match and ``False`` otherwise.
+        """
+        if np.array_equal(vector.grid.coordinates, self.grid.coordinates):
+            return True
+        else:
+            return False
 
     @property
-    def shape(self) -> Tuple[int, int]:
-        """
-        Shape of the :class:`LinearOperator` matrix.
+    @abstractmethod
+    def matrix(self):
+        """Matrix representation of the linear operator.
 
-        :return: Tuple containing the two matrix dimensions of the :class:`LinearOperator` matrix representation.
+        .. note::
+            This is an abstract method. No default implementation is provided because the matrix representation \
+            depends on the underlying quantum operator.
+
+        Raises
+        ------
+        NotImplementedError
+            If this method is not implemented by a subclass.
+        """
+        raise NotImplementedError
+
+
+class PositionOperator(LinearOperator):
+    """Class representation of the position operator :math:`\\hat{x}`."""
+
+    @property
+    def matrix(self) -> dia_matrix:
+        """Matrix representation of the position operator :math:`\\hat{x}`.
+
+        Returns
+        -------
+        matrix : :class:`scipy.sparse.dia.dia_matrix`
+            Sparse matrix containing the grid coordinate values on the main diagonal.
+
+        Notes
+        -----
+        Uses :func:`diags` from :mod:`scipy.sparse` to generate the scalar matrix.
         """
         shape = (self.grid.points, self.grid.points)
-        return shape
+        matrix = diags(self.grid.coordinates, 0, shape=shape)
+        return matrix
 
-    @classmethod
-    def scalar(cls, grid: Grid, scalar: Union[int, float, complex, np.ndarray]):
+
+class PotentialEnergyOperator(LinearOperator):
+    """Class representation of the potential energy operator :math:`\\hat{V}`.
+
+    Parameters
+    -----------------
+    potential : :class:`Potential`
+        Time-independent external potential, required for the matrix representation.
+    """
+
+    def __init__(self, grid: Grid, potential: Potential):
+        super().__init__(grid)
+        self.potential = potential
+
+    @property
+    def matrix(self) -> dia_matrix:
+        """Matrix representation of the potential energy operator :math:`\\hat{V}`.
+
+        Returns
+        -------
+        matrix : :class:`scipy.sparse.dia.dia_matrix`
+            Sparse matrix containing the values of the potential on the main diagonal.
+
+        Raises
+        ------
+        ValueError
+            If the grid of the potential doesn't match the grid of the :class:`LinearOperator` instance.
+
+        Notes
+        -----
+        Uses :func:`diags` from :mod:`scipy.sparse` to generate the scalar matrix.
         """
-        Creates a :class:`LinearOperator` instance whose matrix representation scales function values.
+        if self.assert_compatibility(self.potential) is False:
+            raise ValueError("Grids of potential and linear operator do not match!")
+        shape = (self.grid.points, self.grid.points)
+        matrix = diags(self.potential.values, 0, shape=shape)
+        return matrix
 
-        The matrix only contains elements on the main diagonal. Uses :func:`scipy.sparse.diags` to create the matrix,
-        meaning when single values are specified as a scalar, they will be broadcast along the main diagonal.
 
-        :param grid: :class:`Grid` instance.
-        :param scalar: Scalar which scales the function values.
-        :return: Scalar :class:`LinearOperator`.
+class MomentumOperator(LinearOperator):
+    """Class representation of the momentum operator :math:`\\hat{p}`.
+
+    Other Parameters
+    ----------------
+    accuracy : :class:`int`, default=2
+        Order of accuracy in the grid spacing of the finite difference scheme. By default, :mod:`findiff` uses second \
+        order accuracy.
+
+    Notes
+    -----
+    .. math:: \\hat{p} = -\\text{i} \\hbar \\nabla
+    """
+
+    def __init__(self, grid: Grid, **kwargs):
+        super().__init__(grid)
+        self.accuracy = kwargs.get("accuracy", 2)
+
+    @property
+    def matrix(self) -> csr_matrix:
+        """Matrix representation of the momentum operator :math:`\\hat{p}`.
+
+        Returns
+        -------
+        matrix : :class:`scipy.sparse.csr.csr_matrix`
+            Sparse matrix containing the first derivative finite difference coefficients multiplied with \
+            :math:`- \\text{i}`.
+
+        Notes
+        -----
+        Uses :class:`FinDiff` from :mod:`findiff` to create the necessary matrix with finite difference coefficients, \
+        assumes a homogeneous grid with even spacing. For further information refer to the :mod:`findiff` package and \
+        its documentation.
         """
-        shape = (grid.points, grid.points)
-        matrix = diags(scalar, 0, shape=shape)
-        return cls(grid, matrix)
+        first_derivative = FinDiff(0, self.grid.spacing, 1, acc=self.accuracy).matrix(self.grid.coordinates.shape)
+        matrix = -1j * first_derivative
+        return matrix
 
-    @classmethod
-    def derivative(cls, grid: Grid):
+
+class KineticEnergyOperator(LinearOperator):
+    """Class representation of the kinetic energy operator :math:`\\hat{T}`.
+
+    Parameters
+    ----------
+    mass : :class:`float`
+        Mass of the particle, required for the matrix representation.
+
+    Other Parameters
+    ----------------
+    accuracy : :class:`int`, default=2
+        Order of accuracy in the grid spacing of the finite difference scheme. By default, :mod:`findiff` uses second \
+        order accuracy.
+
+    Notes
+    -----
+    .. math:: \\hat{T} = - \\frac{ \\hbar ^2 }{ 2m } \\nabla ^2
+    """
+
+    def __init__(self, grid: Grid, mass: float, **kwargs):
+        super().__init__(grid)
+        self.mass = mass
+        self.accuracy = kwargs.get("accuracy", 2)
+
+    @property
+    def matrix(self) -> csr_matrix:
+        """Matrix representation of the kinetic energy operator :math:`\\hat{T}`.
+
+        Returns
+        -------
+        matrix : :class:`scipy.sparse.csr.csr_matrix`
+            Sparse matrix containing the second derivative finite difference coefficients multiplied with \
+            :math:`- \\frac{ \\hbar ^2 }{ 2m }`.
+
+        Notes
+        -----
+        Uses :class:`FinDiff` from :mod:`findiff` to create the necessary matrix with finite difference coefficients, \
+        assumes a homogeneous grid with even spacing. For further information refer to the :mod:`findiff` package and \
+        its documentation.
         """
-        Creates a :class:`LinearOperator` instance whose matrix representation derives function values.
+        second_derivative = FinDiff(0, self.grid.spacing, 2, acc=self.accuracy).matrix(self.grid.coordinates.shape)
+        matrix = -1 * np.reciprocal(2. * self.mass) * second_derivative
+        return matrix
 
-        It is a finite difference matrix which contains the central finite difference coefficients on the two \
-        diagonals above and below the main diagonal. The derivative is of order 1 and the accuracy is of order 2. \
-        Beware that the edges are not of higher order, boundary effects can occur. Therefore it is important \
-        for the function values to be zero at the edges.
 
-        :param grid: :class:`Grid` instance.
-        :return: First derivative :class:`LinearOperator`.
+class Hamiltonian(LinearOperator):
+    """Class representation of the Hamiltonian :math:`\\hat{H}`.
+
+    Parameters
+    ----------
+    mass : :class:`float`
+        Mass of the particle, required for the matrix representation.
+    potential : :class:`Potential`
+        Time-independent external potential, required for the matrix representation.
+
+    Other Parameters
+    ----------------
+    accuracy : :class:`int`, default=2
+        Order of accuracy in the grid spacing of the finite difference scheme. By default, :mod:`findiff` uses second \
+        order accuracy.
+
+    Notes
+    -----
+    .. math:: \\hat{H} = \\hat{T} + \\hat{V} = - \\frac{ \\hbar ^2 }{ 2m } \\nabla ^2 + \\hat{V}
+    """
+
+    def __init__(self, grid: Grid, mass: float, potential: Potential, **kwargs):
+        super().__init__(grid)
+        self.mass = mass
+        self.potential = potential
+        self.accuracy = kwargs.get("accuracy", 2)
+
+    @property
+    def matrix(self) -> csr_matrix:
+        """Matrix representation of the Hamiltonian :math:`\\hat{H}`.
+
+        Returns
+        -------
+        matrix : :class:`scipy.sparse.csr.csr_matrix`
+            Sparse matrix containing the second derivative finite difference coefficients multiplied with \
+            :math:`- \\frac{ \\hbar ^2 }{ 2m }`, the values of the external potential :math:`V` are added on top \
+            of the coefficients of the main diagonal.
+
+        Notes
+        -----
+        Uses :class:`KineticEnergyOperator` and :class:`PotentialEnergyOperator` to create the necessary matrix \
+        representations of these operators.
         """
-        diagonals = np.array([-1, 1]) / (2 * grid.spacing)
-        offsets = [-1, 1]
-        shape = (grid.points, grid.points)
-        matrix = diags(diagonals, offsets, shape=shape)
-        return cls(grid, matrix)
+        matrix = KineticEnergyOperator(self.grid, self.mass, accuracy=self.accuracy).matrix \
+            + PotentialEnergyOperator(self.grid, self.potential).matrix
+        return matrix
 
-    @classmethod
-    def momentum(cls, grid: Grid):
+
+class IdentityOperator(LinearOperator):
+    """Class representation of the identity operator :math:`\\hat{1}`."""
+
+    @property
+    def matrix(self) -> dia_matrix:
+        """Matrix representation of the identity operator :math:`\\hat{1}`.
+
+        Returns
+        -------
+        matrix : :class:`scipy.sparse.dia.dia_matrix`
+            Sparse matrix containing :math:`1` on the main diagonal.
+
+        Notes
+        -----
+        Uses :func:`identity` from :mod:`scipy.sparse` to generate the identity matrix.
         """
-        Creates a :class:`LinearOperator` instance which resembles the quantum momentum operator.
+        matrix = identity(self.grid.points)
+        return matrix
 
-        The matrix representation is generated analogous to the equation :math:`\\hat{p} = -\\text{i} \\hbar \\nabla`.
 
-        See also :func:`LinearOperator.derivative`.
+class TimeEvolutionOperator(LinearOperator):
+    """Class representation of the time evolution operator :math:`\\hat{U} \\left( \\Delta t \\right)`.
 
-        :param grid: :class:`Grid` instance.
-        :return: Momentum :class:`LinearOperator`.
+    The exponential operator :math:`e^{ - \\text{i} \\hat{H} \\Delta t / \\hbar }` is replaced by its diagonal \
+    :math:`\\left[ 1 / 1 \\right]` Padé approximant. The resulting operator is unitary and conserves wave function \
+    normalization and time reversibility.
+
+    Parameters
+    ----------
+    mass : :class:`float`
+        Mass of the particle, required for the matrix representation.
+    potential : :class:`Potential`
+        Time-independent external potential, required for the matrix representation.
+    time_increment : :class:`float` or :class:`complex`
+        Time interval between simulation steps in atomic units.
+
+    Other Parameters
+    ----------------
+    accuracy : :class:`int`, default=2
+        Order of accuracy in the grid spacing of the finite difference scheme. By default, :mod:`findiff` uses second \
+        order accuracy.
+
+    Notes
+    -----
+
+    .. math::
+
+        \\hat{U} \\left( \\Delta t \\right) = e^{ - \\text{i} \\hat{H} \\Delta t / \\hbar }
+        \\approx \\frac{ \\hat{1} - \\text{i} \\hat{H} \\Delta t / 2 \\hbar }
+        { \\hat{1} + \\text{i} \\hat{H} \\Delta t / 2 \\hbar } + \\mathcal{O} \\left( \\Delta t \\right) ^3
+
+    """
+
+    def __init__(self, grid: Grid, mass: float, potential: Potential, time_increment: Union[float, complex], **kwargs):
+        super().__init__(grid)
+        self.mass = mass
+        self.potential = potential
+        self.time_increment = time_increment
+        self.accuracy = kwargs.get("accuracy", 2)
+
+    def map(self, vector: WaveFunction) -> WaveFunction:
+        r"""Applies the time evolution operator to a state vector.
+
+        The linear transformation cannot be computed through a simple matrix vector product because the time \
+        evolution operator's matrix exponential is replaced by its diagonal :math:`\left[ 1 / 1 \right]` Padé \
+        approximant.
+
+        .. warning:: Does not assert compatability!
+
+        Parameters
+        ----------
+        vector : :class:`WaveFunction`
+            Initial state vector (wave function).
+
+        Returns
+        -------
+        vector : :class:`WaveFunction`
+            Time evolved wave function.
+
+        Notes
+        -----
+        The linear mapping is achieved by solving following linear equation system.
+
+        .. math::
+
+            \Psi \left( x, t + \Delta t \right) &= \hat{U} \left( \Delta t \right) \Psi \left( x, t \right) \\
+            \hat{U}_{ \text{Denominator} } \, \Psi \left( x, t + \Delta t \right) &=
+            \hat{U}_{ \text{Numerator} } \, \Psi \left( x, t \right)
+
         """
-        matrix = -1j * LinearOperator.derivative(grid).matrix
-        return cls(grid, matrix)
+        # matrix a is already known
+        a = self.matrix[1]
 
-    @classmethod
-    def second_derivative(cls, grid: Grid):
+        # vector b is computed via the ordinary matrix vector product
+        b = self.matrix[0].dot(vector.values)
+
+        # solve the linear equation system Ax=b using scipy
+        vector.values = spsolve(a, b)
+        return vector
+
+    @property
+    def matrix(self) -> Tuple[csr_matrix, csr_matrix]:
+        r"""Matrix representation of the time evolution operator :math:`\hat{U} \left( \Delta t \right)`.
+
+        Precisely, the matrix representations of the numerator and the denominator of the time evolution operator's \
+        diagonal Padé approximant are returned because the inverse of the Hamiltonian cannot be calculated.
+
+        Returns
+        -------
+        numerator_matrix, denominator_matrix : :class:`tuple` of :class:`scipy.sparse.csr.csr_matrix`
+            Sparse matrices containing the matrix representations of the numerator and the denominator of the \
+            approximated time evolution operator.
+
+        Notes
+        -----
+
+        .. math::
+
+            \hat{U} _{ \text{Numerator} } = \hat{1} - \frac{ \text{i} \hat{H} \Delta t }{ 2 \hbar } \\
+            \hat{U} _{ \text{Denominator} } = \hat{1} + \frac{ \text{i} \hat{H} \Delta t }{ 2 \hbar }
+
+        Uses :class:`Hamiltonian` to create the necessary matrix representation of the time-independent Hamiltonian \
+        operator. Additionally uses :func:`identity` from :mod:`scipy.sparse` to generate the identity matrix.
         """
-        Creates a :class:`LinearOperator` instance whose matrix representation calculates the second derivative \
-        of function values when acting on them.
-
-        It is a finite difference matrix which contains the central finite difference coefficients on the main \
-        diagonals and the two diagonals above and below the main diagonal. The derivative is of order 2 and the \
-        accuracy is of order 2. Beware that the edges are not of higher order, boundary effects can occur. Therefore \
-        it is important for the function values to be zero at the edges.
-
-        :param grid: :class:`Grid` instance.
-        :return: Second derivative :class:`LinearOperator`.
-        """
-        diagonals = np.array([1, -2, 1]) / (grid.spacing ** 2)
-        offsets = [-1, 0, 1]
-        shape = (grid.points, grid.points)
-        matrix = diags(diagonals, offsets, shape=shape)
-        return cls(grid, matrix)
-
-    @classmethod
-    def kinetic_energy(cls, grid: Grid, mass: float):
-        """
-        Creates a :class:`LinearOperator` instance which resembles the quantum kinetic energy operator.
-
-        The matrix representation is generated analogous to the equation :math:`\\hat{T} = - \\frac{ \\hbar ^2 } \
-        { 2m } \\nabla ^2`.
-
-        See also :func:`LinearOperator.second_derivative`.
-
-        :param grid: :class:`Grid` instance.
-        :param mass: Mass of the particle described by the wave function.
-        :return: Kinetic energy :class:`LinearOperator`.
-        """
-        matrix = -1 * np.reciprocal(2. * mass) * LinearOperator.second_derivative(grid).matrix
-        return cls(grid, matrix)
-
-    @classmethod
-    def hamilton(cls, grid: Grid, mass: float, potential: np.ndarray):
-        """
-        Creates a :class:`LinearOperator` instance which resembles the quantum hamilton operator.
-
-        The matrix representation is generated analogous to the equation :math:`\\hat{H} = - \\frac{ \\hbar ^2 } \
-        { 2m } \\nabla ^2 + \\hat{V}`.
-
-        See also :func:`LinearOperator.kinetic_energy` and :func:`LinearOperator.potential`.
-
-        :param grid: :class:`Grid` instance.
-        :param mass: Mass of the particle described by the wave function.
-        :param potential: Discretized time-independent potential acting on the particle.
-        :return: Hamilton :class:`LinearOperator`.
-        """
-        matrix = LinearOperator.kinetic_energy(grid, mass).matrix + LinearOperator.potential(grid, potential).matrix
-        return cls(grid, matrix)
-
-    @classmethod
-    def time_evolution_lhs(cls, grid: Grid, time_increment: float, mass: float, potential: np.ndarray):
-        """
-        Creates a :class:`LinearOperator` instance which resembles the left hand side time evolution operator.
-
-        The matrix representation is generated analogous to the equation :math:`\\hat{U}_{ \\text{LHS} } = \\hat{1} + \
-        \\frac{ \\text{i} \\hat{H} \\Delta t }{ 2 \\hbar }`.
-
-        See also :func:`LinearOperator.hamilton`.
-
-        :param grid: :class:`Grid` instance.
-        :param time_increment: Time increment specified for the time evolution steps.
-        :param mass: Mass of the particle described by the wave function.
-        :param potential: Discretized time-independent potential acting on the particle.
-        :return: Left hand side time evolution operator :class:`LinearOperator`.
-        """
-        matrix = identity(grid.points) + 0.5j * time_increment * LinearOperator.hamilton(grid, mass, potential).matrix
-        return cls(grid, matrix)
-
-    @classmethod
-    def time_evolution_rhs(cls, grid: Grid, time_increment: float, mass: float, potential: np.ndarray):
-        """
-        Creates a :class:`LinearOperator` instance which resembles the right hand side time evolution operator.
-
-        The matrix representation is generated analogous to the equation :math:`\\hat{U}_{ \\text{RHS} } = \\hat{1} - \
-        \\frac{ \\text{i} \\hat{H} \\Delta t }{ 2 \\hbar }`.
-
-        See also :func:`LinearOperator.hamilton`.
-
-        :param grid: :class:`Grid` instance.
-        :param time_increment: Time increment specified for the time evolution steps.
-        :param mass: Mass of the particle described by the wave function.
-        :param potential: Discretized time-independent potential acting on the particle.
-        :return: Right hand side time evolution operator :class:`LinearOperator`.
-        """
-        matrix = identity(grid.points) - 0.5j * time_increment * LinearOperator.hamilton(grid, mass, potential).matrix
-        return cls(grid, matrix)
-
-    @classmethod
-    def potential(cls, grid: Grid, potential: np.ndarray):
-        """
-        Creates a :class:`LinearOperator` instance which resembles the quantum potential energy operator.
-
-        When the matrix acts on function values it scales them by the value of the potential.
-
-        See also :func:`LinearOperator.scalar`.
-
-        :param grid: :class:`Grid` instance.
-        :param potential: Discretized time-independent potential acting on the particle.
-        :return: Potential :class:`LinearOperator`.
-        """
-        matrix = LinearOperator.scalar(grid, potential).matrix
-        return cls(grid, matrix)
-
-    @classmethod
-    def position(cls, grid: Grid):
-        """
-        Creates a :class:`LinearOperator` instance which resembles the quantum position operator.
-
-        When the matrix acts on function values it scales them by the grid coordinate values.
-
-        See also :func:`LinearOperator.scalar`.
-
-        :param grid: :class:`Grid` instance.
-        :return: Position :class:`LinearOperator`.
-        """
-        matrix = LinearOperator.scalar(grid, grid.coordinates).matrix
-        return cls(grid, matrix)
-
-    @classmethod
-    def integrated_density(cls, grid: Grid):
-        """
-        Creates an identity :class:`LinearOperator` instance.
-
-        It is used for calculating the probability of finding the particle somewhere in space. For this an identity \
-        matrix is generated with :func:`scipy.sparse.identity`.
-
-        :param grid: :class:`Grid` instance.
-        :return: Identity :class:`LinearOperator`.
-        """
-        matrix = identity(grid.points)
-        return cls(grid, matrix)
+        numerator_matrix = identity(self.grid.points) - 0.5j * self.time_increment \
+            * Hamiltonian(self.grid, self.mass, self.potential, accuracy=self.accuracy).matrix
+        denominator_matrix = identity(self.grid.points) + 0.5j * self.time_increment \
+            * Hamiltonian(self.grid, self.mass, self.potential, accuracy=self.accuracy).matrix
+        return numerator_matrix, denominator_matrix
 
 
 class Simulation:
-    """
-    Class for simulation of the wave packet dynamics.
 
-    Creating an instance of this class by providing a :class:`Grid`, :class:`WaveFunction` and :class:`Potential` \
-    object alongside a desired :data:`time_increment` primes the simulation. The simulation is executed by calling \
-    the instance, see :meth:`Simulation.__call__`. This animates the wave packet propagation and writes data to a file.
-
-    :param grid: :class:`Grid` required for creating linear operators.
-    :param wave_function: The :class:`WaveFunction` which should be evolved.
-    :param potential: The time-independent :class:`Potential` acting on the particle.
-    :param time_increment: Desired time increment for each simulation step in atomic units.
-    :param name: Name of the simulation, defaults to 'simulation'.
-    """
-
-    def __init__(self, grid: Grid, wave_function: WaveFunction, potential: Potential, time_increment: float,
-                 name: str = 'simulation'):
-        """
-        Constructor of the :class:`Simulation` object.
-
-        :param grid: :class:`Grid` required for creating linear operators.
-        :param wave_function: The :class:`WaveFunction` which should be evolved.
-        :param potential: The time-independent :class:`Potential` acting on the particle.
-        :param time_increment: Desired time increment for each simulation step in atomic units.
-        :param name: Name of the simulation, defaults to 'simulation'.
-        """
+    def __init__(self, grid: Grid, wave_function: WaveFunction, potential: Potential, time_increment: float, **kwargs):
         self.grid = grid
         self.wave_function = wave_function
         self.potential = potential
         self.time_increment = time_increment
-        self.name = name
 
-        # create a dictionary which contains linear operators associated to their expectation value
-        self.operator_dictionary = {
-            "potential_energy": LinearOperator.potential(self.grid, self.potential.values),
-            "kinetic_energy": LinearOperator.kinetic_energy(self.grid, self.wave_function.mass),
-            "total_energy": LinearOperator.hamilton(self.grid, self.wave_function.mass, self.potential.values),
-            "momentum": LinearOperator.momentum(self.grid),
-            "position": LinearOperator.position(self.grid),
-            "integrated_density": LinearOperator.integrated_density(self.grid),
+        # process keyword arguments
+        self.accuracy = kwargs.get("accuracy", 2)
+
+        self.operators = {
+            "total_density": IdentityOperator(self.grid),
+            "position": PositionOperator(self.grid),
+            "potential_energy": PotentialEnergyOperator(self.grid, self.potential),
+            "momentum": MomentumOperator(self.grid, accuracy=self.accuracy),
+            "kinetic_energy": KineticEnergyOperator(self.grid, self.wave_function.mass, accuracy=self.accuracy),
+            "total_energy": Hamiltonian(self.grid, self.wave_function.mass, self.potential, accuracy=self.accuracy),
         }
 
     def __call__(self, total_time_steps: int, **kwargs):
-        """
-        Start the simulation.
+        # process optional keyword arguments
+        name = kwargs.get("name", "simulation")
+        write_step = kwargs.get("write_step", total_time_steps)
+        data_objects = kwargs.get("data_objects", None)
+        expectation_values = kwargs.get("expectation_values", None)
 
-        The simulation is executed by calling the instance and providing the run time in form of an integer \
-        :data:`total_time_steps`. A unique folder will be created in the working directory when executing the \
-        simulation, which will contain all associated files. Specifying additional keyword arguments when calling \
-        the simulation changes what/how data will be represented in the animation and what data will be written to \
-        files.
-
-        :param total_time_steps: Run time of the animation provided as a number of total time steps.
-        :param kwargs: Optional keyword arguments.
-        """
-        # create a new directory
+        # create a new directory whose name includes a unique time stamp
         time_stamp = datetime.now().strftime("%y-%m-%d_%H-%M-%S")
-        directory_name = '_'.join([self.name, time_stamp])
+        directory_name = '_'.join([name, time_stamp])
         os.mkdir(directory_name)
 
-        # change working directory to new directory
+        # change the working directory to the new directory
         working_directory = os.getcwd()
         os.chdir(os.path.join(working_directory, directory_name))
 
-        # start the matplotlib animation
-        print("Starting simulation:")
+        # create the time evolution operator
+        operator_args = [self.grid, self.wave_function.mass, self.potential, self.time_increment]
+        time_evo_op = TimeEvolutionOperator(*operator_args, accuracy=self.accuracy)
+
+        # start the simulation
+        print("Starting simulation...")
+        start = default_timer()
+        time = 0
         try:
-            self.animate(total_time_steps, **kwargs)
-        # preform clean-up duties
+            for time_step in range(0, total_time_steps):
+                # check if something needs to be written to a file
+                if time_step % write_step == 0:
+                    self._write_to_file(time, data_objects, expectation_values)
+
+                # evolve the wave function
+                self.wave_function = time_evo_op.map(self.wave_function)
+
+                # update the simulation time
+                time += self.time_increment
+        # perform clean up duties even if the simulation fails
         finally:
-            print("Simulation finished!")
+            end = default_timer()
+            elapsed = round(end - start, 5)
+            print(f"Simulation finished after {elapsed} seconds!")
             # change working directory back to original directory
             os.chdir("..")
 
-    def frame_sequence(self, total_time_steps, data_to_write: List[str], value_to_write: List[str],
-                       write_step: int, animate_step: int) -> Iterator[int]:
-
-        # create operators needed for time evolution
-        args = [self.grid, self.time_increment, self.wave_function.mass, self.potential.values]
-        lhs_operator = LinearOperator.time_evolution_lhs(*args).matrix
-        rhs_operator = LinearOperator.time_evolution_rhs(*args).matrix
-
-        # extract les coefficients a, b, c
-        a = lhs_operator.diagonal(-1)
-        b = lhs_operator.diagonal(0)
-        c = lhs_operator.diagonal(1)
-
-        # iterate until the last time step is reached
-        for time_step in range(1, total_time_steps + 1):
-            # update les coefficient d
-            d = rhs_operator.dot(self.wave_function.values)
-
-            # pass les coefficients to thomas algorithm to evolve wave_function
-            self.wave_function.values = thomas_algorithm(a, b, c, d)
-
-            # check if data needs to be written to a file
-            if time_step % write_step == 0:
-                print(f"Writing data from time step {time_step} to file")
-                for item in data_to_write:
-                    filename = f"{item}.csv"
-                    data = self.get_data(item)
-                    with open(filename, "a") as file:
-                        np.savetxt(file, data, fmt='%s', delimiter=',', newline='')
-                        file.write("\n")
-                for item in value_to_write:
-                    filename = f"{item}.csv"
-                    value = self.get_value(item)
-                    with open(filename, "a") as file:
-                        file.write(f"{value}\n")
-
-            # only yield time steps which should be animated
-            if time_step % animate_step == 0:
-                print(f"Adding data from time step {time_step} to animation")
-                yield time_step
-
-    def animate(self, total_time_steps: int, **kwargs):
-        # process keyword arguments
-        data_to_animate = kwargs.pop('data_to_animate', [])
-        animate_step = kwargs.pop('animate_step', total_time_steps)
-        data_to_write = kwargs.pop('data_to_write', [])
-        value_to_write = kwargs.pop('value_to_write', [])
-        write_step = kwargs.pop('write_step', total_time_steps)
-
-        x_ticks = kwargs.pop('x_ticks', ())
-        y_ticks = kwargs.pop('y_ticks', ())
-        z_ticks = kwargs.pop('z_ticks', ())
-
-        x_limits = kwargs.pop('x_limits', self.grid.bounds)
-        y_limits = kwargs.pop('y_limits', (-1, 1))
-        z_limits = kwargs.pop('z_limits', (-1, 1))
-
-        fps = kwargs.pop('fps', 20)
-        dpi = kwargs.pop('dpi', 200)
-        bitrate = kwargs.pop('bitrate', 2500)
-
-        # set up a generator for matplotlib animation
-        frames = self.frame_sequence(total_time_steps, data_to_write, value_to_write, write_step, animate_step)
-
-        # set up figure and axes
-        fig = plt.figure()
-        fig.set_size_inches(8, 4.5)
-        ax = fig.add_subplot(111, projection='3d')
-        fig.subplots_adjust(left=0, bottom=0, right=1, top=1)
-
-        # set view direction of 3 dimensional plot
-        ax.view_init(elev=11, azim=102)
-
-        # set axes properties: labels, ticks, dimensions
-        ax.set_xlabel('x')
-        ax.set_ylabel('Im')
-        ax.set_zlabel('Re')
-
-        ax.set_xticks(x_ticks)
-        ax.set_yticks(y_ticks)
-        ax.set_zticks(z_ticks)
-
-        ax.set_xlim(x_limits)
-        ax.set_ylim(y_limits)
-        ax.set_zlim(z_limits)
-
-        # generate line objects
-        lines = []
-        for item in data_to_animate:
-            new_line = ax.plot([], [], [], lw=2, label=item)[0]
-            lines.append(new_line)
-
-        # initialisation: set up base-line canvas
-        def init():
-            for line in lines:
-                line.set_data([], [])
-            return lines
-
-        # function to update the line objects
-        def update(time_step):
-
-            x = self.grid.coordinates
-            y = []
-            z = []
-
-            for item in data_to_animate:
-                data = self.get_data(item)
-                y.append(data.imag)
-                z.append(data.real)
-
-            for index, line in enumerate(lines):
-                line.set_data(x, y[index])
-                line.set_3d_properties(z[index])
-
-            plt.legend()
-
-            return lines
-
-        # create the animation
-        # frames which are supposed to be animated are 'lazily' generated by a given generator
-        # overwrite the unreasonable save_count of 100 frames when using a generator
-        anim = animation.FuncAnimation(fig=fig,
-                                       func=update,
-                                       frames=frames,
-                                       init_func=init,
-                                       save_count=total_time_steps,
-                                       blit=True,
-                                       repeat=False)
-
-        # save the animation as mp4 (ffmpeg has to be installed)
-        anim.save(f"animation.mp4", writer="ffmpeg", fps=fps, dpi=dpi, bitrate=bitrate)
-
-        # delete the animation if it contains one or no frames
-        if total_time_steps / animate_step <= 1:
-            print("Deleting animation!")
-            os.remove("animation.mp4")
-
-    def get_data(self, name: str):
-        if name == 'wave_function':
-            return self.wave_function.values
-        elif name == 'probability_density':
-            return self.wave_function.probability_density
-        elif name == 'potential':
-            return self.potential.values
-        else:
-            raise ValueError(f"Unknown quantity '{name}'")
-
-    def get_value(self, name: str):
+    def _get_data(self, item: str) -> np.ndarray:
+        available_data = {
+            "wave_function": self.wave_function.values,
+            "wave_function_real": self.wave_function.values.real,
+            "wave_function_imag": self.wave_function.values.imag,
+            "probability_density": self.wave_function.probability_density,
+            "potential": self.potential.values,
+        }
         try:
-            operator = self.operator_dictionary[name]
+            data = available_data[item]
         except KeyError as error:
-            raise ValueError(f"Unknown expectation value '{name}'") from error
+            raise ValueError(f"Cannot find reference to '{item}'!") from error
         else:
-            exp_val = self.wave_function.expectation_value(operator)
-            return exp_val
+            return data
+
+    def _get_expectation_value(self, observable: str) -> float:
+        try:
+            operator = self.operators[observable]
+        except KeyError as error:
+            raise ValueError(f"Cannot find operator corresponding to '{observable}'!") from error
+        else:
+            expectation_value = self.wave_function.expectation_value(operator)
+            return expectation_value
+
+    def _write_to_file(self, time: complex, data_objects: List[str], expectation_values: List[str]):
+        # append current simulation time in atomic units to the time file
+        with open("time.txt", "a") as file:
+            file.write(f"{time}\n")
+
+        # append all data to their corresponding files
+        for item in data_objects:
+            filename = f"{item}.txt"
+            data = self._get_data(item)
+            with open(filename, "ab") as file:
+                np.savetxt(file, [data], fmt="%.3e", delimiter=",")
+
+        # append all expectation values to their corresponding files
+        for observable in expectation_values:
+            filename = f"{observable}.txt"
+            exp_val = self._get_expectation_value(observable)
+            with open(filename, "a") as file:
+                file.write(f"{exp_val}\n")
 
 
 def integrate(function_values: np.ndarray, grid_spacing: float) -> float:
     return np.sum(function_values) * grid_spacing
-
-
-def thomas_algorithm(a, b, c, d) -> np.ndarray:
-    return lapack.cgtsv(a, b, c, d, 1, 1, 1, 1)[3]

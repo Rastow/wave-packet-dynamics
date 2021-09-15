@@ -2,10 +2,6 @@ wave\_packet\_dynamics package
 ==============================
 
 .. automodule:: wave_packet_dynamics
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :private-members:
 
 Submodules
 ----------
