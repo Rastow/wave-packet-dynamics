@@ -1,5 +1,5 @@
-"""Submodule with predefined wave functions.
-"""
+"""Submodule with predefined wave functions."""
+
 import numpy as np
 
 

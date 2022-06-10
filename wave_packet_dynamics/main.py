@@ -1,7 +1,5 @@
-"""Main module with most functionality.
+"""Main module with most functionality. It is loaded when importing the package."""
 
-The contents of this submodule are loaded when importing the package.
-"""
 from typing import Any, Callable, Dict, List, Tuple, Union
 from abc import abstractmethod
 import math

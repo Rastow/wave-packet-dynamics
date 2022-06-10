@@ -1,5 +1,5 @@
-"""Submodule with predefined potential functions.
-"""
+"""Submodule with predefined potential functions."""
+
 import numpy as np
 
 
