@@ -4,16 +4,13 @@ The contents of this submodule are loaded when importing the package.
 """
 from typing import Any, Callable, Dict, List, Tuple, Union
 from abc import abstractmethod
-
 import math
 from scipy.sparse import csr_matrix, dia_matrix, diags, identity
 from scipy.sparse.linalg import spsolve
 import numpy as np
 from findiff import FinDiff
-
 import os
 from timeit import default_timer
-from inspect import signature
 
 
 class Grid:
@@ -753,35 +750,8 @@ class Simulation:
             elapsed = round(end - start, 5)
             print(f"Simulation finished after {elapsed} seconds!")
 
-            # write the simulation parameters to a file
-            self._write_parameters(name, elapsed, total_time_steps)
-
             # change working directory back to original directory
             os.chdir("..")
-
-    def _write_parameters(self, name, elapsed, total_time_steps):
-        string_sequence = [
-            "SIMULATION\n",
-            f"name: {name}\n",
-            f"run time: {elapsed}\n",
-            f"total steps: {total_time_steps}\n",
-            "\nGRID\n",
-            f"lower bound: {self._wave_function.grid.bounds[0]}\n",
-            f"upper bound: {self._wave_function.grid.bounds[1]}\n",
-            f"points: {self._wave_function.grid.points}\n",
-            f"spacing: {self._wave_function.grid.spacing}\n",
-            f"accuracy: {self.accuracy_grid}\n",
-            "\nTIME\n"
-            f"increment: {self.time_increment}\n",
-            f"accuracy: {self.accuracy_time}\n",
-            "\nWAVE FUNCTION\n",
-            f"mass: {self._wave_function.mass}\n",
-            f"function arguments: {signature(self._wave_function.function)}\n",
-            "\nPOTENTIAL\n",
-            f"function arguments: {signature(self._potential.function)}\n",
-        ]
-        with open("parameters.txt", "w") as file:
-            file.writelines(string_sequence)
 
     def _write_time(self):
         with open("time.txt", "a") as file:
@@ -839,37 +809,6 @@ class Simulation:
         with open(filename, "ab") as file:
             np.savetxt(file, [data], fmt="%.3e", delimiter=", ")
 
-    def _load_config(self):
-        pass
-
-    def _save_config(self):
-        pass
-
 
 def integrate(function_values: np.ndarray, grid_spacing: float) -> float:
     return np.sum(function_values) * grid_spacing
-
-
-class Visualizer:
-
-    def __init__(self, relative_path: str, file_names: str, **kwargs):
-        self._relative_path = relative_path
-        self._file_names = file_names
-        self._file_types = []
-        self.files: Dict[str, str] = {}
-        self.config = kwargs
-
-    def _determine_type(self):
-        pass
-
-    def _load_config(self):
-        pass
-
-    def _save_config(self):
-        pass
-
-    def plot(self, **kwargs):
-        pass
-
-    def animate(self, **kwargs):
-        pass
