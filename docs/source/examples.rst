@@ -15,12 +15,6 @@ Examples
 
 Tutorials will be provided in form of executed JupyterNotebooks.
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Notebooks:
-
-   notebooks/
-
 Additional Tips
 ***************
 

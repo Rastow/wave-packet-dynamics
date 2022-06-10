@@ -9,7 +9,7 @@ wave-packet-dynamics
 arbitrary time independent potential.**
 
 -  Installation: ``pip install wave-packet-dynamics``
--  Example usage is provided in form of JupyterNotebooks
+-  Example usage will be provided in form of JupyterNotebooks.
 -  Documentation: https://wave-packet-dynamics.readthedocs.io
 
 .. |PyPI version shields.io| image:: https://img.shields.io/pypi/v/wave-packet-dynamics.svg
