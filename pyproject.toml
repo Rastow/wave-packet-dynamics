@@ -1,0 +1,127 @@
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[project]
+name = "wave-packet-dynamics"
+description = "Simulation of quantum dynamics."
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "BSD-3-Clause"}
+authors = [
+    {name = "Robert Grzonka", email = "robert.grzonka@fau.de"},
+]
+maintainers = [
+    {name = "Robert Grzonka", email = "robert.grzonka@fau.de"},
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Typing :: Typed",
+]
+dependencies = [
+    "numpy>=2.0.0",
+    "scipy>=1.14.0",
+    "matplotlib>=3.9.1",
+    "click>=8.1.7",
+]
+dynamic = ["version"]
+
+[project.scripts]
+wpd = "wave_packet_dynamics.cli:cli"
+
+[project.urls]
+Tracker = "https://github.com/Rastow/wave-packet-dynamics/issues"
+Source = "https://github.com/Rastow/wave-packet-dynamics"
+
+[tool.pdm]
+distribution = true
+version = {source = "file", path = "src/wave_packet_dynamics/__init__.py"}
+
+[tool.pdm.build]
+package-dir = "src"
+
+[tool.pdm.dev-dependencies]
+docs = [
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.5.28",
+    "mkdocstrings[python]>=0.25.1",
+    "mkdocs-literate-nav>=0.6.1",
+    "mkdocs-section-index>=0.3.9",
+    "mkdocs-gen-files>=0.5.0",
+    "mkdocs-click>=0.8.1",
+]
+test = [
+    "pytest>=8.2.2",
+    "coverage>=7.5.4",
+]
+type = [
+    "mypy[reports]>=1.10.1",
+    "numpy>=2.0.0",
+]
+style = [
+    "ruff>=0.5.1",
+]
+
+[tool.pdm.scripts]
+lint = "ruff check"
+cov.composite = [
+    "coverage erase",
+    "coverage run -m pytest",
+    "coverage report"
+]
+docs = "mkdocs serve"
+fmt = "ruff format"
+test = "pytest"
+type = "mypy"
+
+[tool.coverage.run]
+branch = true
+source = ["src", "tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "class .*\\bProtocol\\):",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+precision = 2
+show_missing = true
+skip_covered = true
+
+[tool.mypy]
+files = ["src"]
+ignore_missing_imports = true
+python_version = "3.11"
+strict = true
+show_error_context = true
+show_column_numbers = true
+pretty = true
+plugins = [
+    "numpy.typing.mypy_plugin",
+]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--doctest-modules",
+    "--import-mode=importlib",
+    "--strict-config",
+    "--strict-markers",
+]
+filterwarnings = [
+    "error",
+]
+pythonpath = "src"
+testpaths = ["src", "tests"]
+xfail_strict = true

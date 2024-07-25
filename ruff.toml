@@ -1,0 +1,81 @@
+line-length = 99
+preview = true
+src = ["src"]
+target-version = "py311"
+
+[format]
+docstring-code-format = true
+docstring-code-line-length = 72
+line-ending = "lf"
+skip-magic-trailing-comma = true
+
+[lint]
+select = [
+    "F",
+    "E",
+    "W",
+    "I",
+    "N",
+    "D",
+    "UP",
+    "ASYNC",
+    "S",
+    "FBT",
+    "B",
+    "A",
+    "COM",
+    "C4",
+    "DTZ",
+    "EM",
+    "FA",
+    "ISC",
+    "LOG",
+    "G",
+    "PIE",
+    "PT",
+    "RSE",
+    "RET",
+    "SLOT",
+    "SIM",
+    "TCH",
+    "ARG",
+    "PTH",
+    "PL",
+    "TRY",
+    "NPY",
+    "PERF",
+    "FURB",
+    "RUF",
+]
+ignore = [
+    "W191",
+    "E111",
+    "E114",
+    "E117",
+    "D206",
+    "D300",
+    "COM812",
+    "COM819",
+    "ISC001",
+    "ISC002",
+]
+
+[lint.per-file-ignores]
+"examples/**" = ["D"]
+"src/**" = ["PT"]
+"tests/**" = ["D", "S"]
+
+[lint.pycodestyle]
+max-doc-length = 72
+
+[lint.isort]
+force-single-line = true
+known-first-party = ["src"]
+lines-after-imports = 2
+lines-between-types = 1
+
+[lint.pydocstyle]
+convention = "numpy"
+
+[lint.pylint]
+allow-magic-value-types = ["int"]

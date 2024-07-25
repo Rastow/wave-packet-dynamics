@@ -1,0 +1,96 @@
+site_name: Wave Packet Dynamics
+site_url: https://wave-packet-dynamics.readthedocs.io/
+site_description: Numerical derivatives using Python.
+site_author: Robert Grzonka
+repo_name: Rastow/wave-packet-dynamics
+repo_url: https://github.com/Rastow/wave-packet-dynamics
+edit_uri: blob/master/docs//
+copyright: Copyright &copy; 2024 Robert Grzonka
+
+theme:
+  name: material
+  favicon: images/favicon.png
+  features:
+    - content.action.view
+    - content.code.copy
+    - navigation.footer
+    - navigation.tabs
+    - navigation.top
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+  icon:
+    logo: material/chart-bell-curve
+    edit: material/file-edit-outline
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - attr_list
+  - mkdocs-click
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.highlight
+  - pymdownx.tabbed
+  - pymdownx.superfences
+  - pymdownx.snippets
+
+extra_javascript:
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+plugins:
+  - search
+  - gen-files:
+      scripts:
+        - scripts/generate_examples.py
+        - scripts/generate_reference.py
+  - literate-nav:
+      nav_file: summary.md
+  - section-index
+  - mkdocstrings:
+      handlers:
+        python:
+          import:
+            - https://docs.python.org/3/objects.inv
+            - https://matplotlib.org/stable/objects.inv
+            - https://numpy.org/doc/stable/objects.inv
+            - https://docs.scipy.org/doc/scipy/objects.inv
+          paths: [src]
+          options:
+            members_order: source
+            group_by_category: false
+            show_signature_annotations: true
+            show_source: false
+            docstring_style: numpy
+
+nav:
+  - Home: index.md
+  - CLI: cli.md
+  - Reference: reference/
+  - Examples: examples/
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Rastow
+    - icon: fontawesome/solid/paper-plane
+      link: mailto:<robert.grzonka@fau.de>
+
+watch:
+  - docs/
+  - examples/
+  - scripts/
+  - src/
+  - mkdocs.yml

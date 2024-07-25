@@ -1,0 +1,19 @@
+total_time_steps = 1000
+time_interval = 3e-4
+particle = "electron"
+
+[grid]
+min = -5
+max = 5
+points = 1000
+
+[wave_function]
+type = "gaussian"
+sigma = 0.2
+x0 = -1
+k0 = 10
+
+[potential]
+type = "barrier"
+h = 75
+w = 0.25
