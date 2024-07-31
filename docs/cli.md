@@ -8,3 +8,4 @@ this project.
     :command: cli
     :prog_name: wpd
     :remove_ascii_art: True
+    :depth: 1

@@ -85,5 +85,16 @@ def animate(output_dir: Path) -> None:
     click.echo("Animation created.")
 
 
+@click.command()
+@click.argument("output_dir", type=click.Path(exists=True, path_type=Path))
+def plot(output_dir: Path) -> None:
+    """Plot expectation values of simulation stored in OUTPUT_DIR."""
+    plot = wpd.Plot(Path(click.format_filename(output_dir)))
+    click.echo("Plotting expectation values...")
+    plot.fig.savefig(output_dir / "plot.png", dpi=200)
+    click.echo("Plot created.")
+
+
 cli.add_command(run)
 cli.add_command(animate)
+cli.add_command(plot)

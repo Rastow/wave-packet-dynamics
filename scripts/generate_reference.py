@@ -26,11 +26,11 @@ for path in sorted(Path("src").rglob("*.py")):
 
     nav[parts] = doc_path.as_posix()
 
-    with mkdocs_gen_files.open(full_doc_path, "w") as f:
+    with mkdocs_gen_files.open(full_doc_path, "w") as file:
         identifier = ".".join(parts)
-        f.write(f"::: {identifier}")
+        file.write(f"::: {identifier}")
         if no_members:
-            f.write("\n    options:\n      members: false")
+            file.write("\n    options:\n      members: false")
 
     mkdocs_gen_files.set_edit_path(full_doc_path, Path("../") / path)
 

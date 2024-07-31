@@ -154,8 +154,7 @@ class Simulation:
                 with (save_directory / "time.txt").open("a") as file:
                     file.write(f"{self.time}\n")
                 for data in ["wave_function", "density"]:
-                    with (save_directory / f"{data}.txt").open("a") as file:
-                        np.savetxt(file, [getattr(self, data)])
+                    np.savetxt(save_directory / f"{data}.txt", [getattr(self, data)])
                 for observable in self.operators:
                     with (save_directory / f"{observable}.txt").open("a") as file:
                         file.write(f"{self.expectation_value(observable)}\n")

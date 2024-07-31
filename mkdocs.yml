@@ -90,7 +90,5 @@ extra:
 
 watch:
   - docs/
-  - examples/
-  - scripts/
   - src/
   - mkdocs.yml

@@ -12,11 +12,13 @@ from wave_packet_dynamics import wave_function
 from wave_packet_dynamics.grid import Grid
 from wave_packet_dynamics.simulation import Simulation
 from wave_packet_dynamics.visualization import Animation
+from wave_packet_dynamics.visualization import Plot
 
 
 __all__ = [
     "Animation",
     "Grid",
+    "Plot",
     "Simulation",
     "operators",
     "particles",

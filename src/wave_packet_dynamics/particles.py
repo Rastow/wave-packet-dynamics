@@ -1,16 +1,23 @@
 """Particles module."""
 
-from typing import Protocol
+
+class Particle:
+    """Arbitrary particle.
+
+    Parameters
+    ----------
+    charge : int
+        Charge of the particle in atomic units.
+    mass : int
+        Mass of the particle in atomic units.
+    """
+
+    def __init__(self, charge: int, mass: int) -> None:
+        self.charge = charge
+        self.mass = mass
 
 
-class Particle(Protocol):
-    """Particle protocol."""
-
-    charge: int
-    mass: int
-
-
-class Electron:
+class Electron(Particle):
     r"""Electron.
 
     Notes
@@ -20,11 +27,11 @@ class Electron:
     $$m = 1m_e$$
     """
 
-    charge = -1
-    mass = 1
+    def __init__(self) -> None:
+        super().__init__(charge=-1, mass=1)
 
 
-class Proton:
+class Proton(Particle):
     r"""Proton.
 
     Notes
@@ -34,5 +41,5 @@ class Proton:
     $$m = 1836 m_e$$
     """
 
-    charge = 1
-    mass = 1836
+    def __init__(self) -> None:
+        super().__init__(charge=1, mass=1836)

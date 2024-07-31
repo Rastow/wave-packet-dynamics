@@ -41,6 +41,7 @@ dynamic = ["version"]
 wpd = "wave_packet_dynamics.cli:cli"
 
 [project.urls]
+Documentation = "https://wave-packet-dynamics.readthedocs.io"
 Tracker = "https://github.com/Rastow/wave-packet-dynamics/issues"
 Source = "https://github.com/Rastow/wave-packet-dynamics"
 
