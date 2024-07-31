@@ -95,7 +95,17 @@ class HamiltonianOperator(SelfAdjointOperator):
 
 
 class TimeEvolutionOperator(SelfAdjointOperator):
-    """Time evolution operator."""
+    """Time evolution operator.
+
+    Attributes
+    ----------
+    a : NDArray[np.complex128]
+        Lower diagonal of the tridiagonal matrix.
+    b : NDArray[np.complex128]
+        Main diagonal of the tridiagonal matrix.
+    c : NDArray[np.complex128]
+        Upper diagonal of the tridiagonal matrix.
+    """
 
     def __init__(self, simulation: Simulation, time_interval: float) -> None:
         self.simulation = simulation
@@ -114,6 +124,12 @@ class TimeEvolutionOperator(SelfAdjointOperator):
         super().__init__(simulation)
 
     def _matvec(self, x: NDArray[np.complex128]) -> NDArray[np.complex128]:
+        """Matrix-vector product.
+
+        First calculates the right-hand-side vector `d` and then solves
+        the tridiagonal system of equations using the LAPACK routine
+        `zgtsv`.
+        """
         d = np.zeros_like(x)
         d[1:-1] = (
             -x[:-2]
